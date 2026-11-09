@@ -315,9 +315,8 @@
     #main,#top { scroll-margin-top:5.5rem; }
     @media (max-width:600px) {
       .nav-enhanced .mobile-nav { max-height:calc(100dvh - 4.7rem); }
-      .quick-contact { display:flex; gap:.5rem; right:.75rem; bottom:max(.75rem,env(safe-area-inset-bottom)); }
+      .quick-contact { display:grid; gap:.5rem; right:.75rem; bottom:max(.75rem,env(safe-area-inset-bottom)); }
       .quick-contact a { width:2.8rem; height:2.8rem; }
-      .quick-contact a::before { right:0; bottom:calc(100% + .5rem); }
     }
     @media (prefers-reduced-motion:reduce) {
       html { scroll-behavior:auto; }
@@ -485,14 +484,14 @@
         </div>
         <div class="contact-form">
           <h3>Gửi yêu cầu tư vấn</h3><p>Để lại thông tin công trình, Minh Tú sẽ liên hệ trao đổi với bạn.</p>
-          <form id="quote-form">
+          <form id="quote-form" method="post" action="https://script.google.com/macros/s/AKfycbzLrJHV2v_DIJauE5YZbtYq-J6wGVlyy8ZeRFadoBQDqj3Uayx23Rmmb-tVDnFGTm_z/exec">
             <div class="form-grid">
-              <div class="field"><label for="customer-name">Họ và tên *</label><input id="customer-name" name="name" type="text" autocomplete="name" required></div>
-              <div class="field"><label for="customer-phone">Số điện thoại *</label><input id="customer-phone" name="phone" type="tel" autocomplete="tel" required></div>
+              <div class="field"><label for="customer-name">Họ và tên *</label><input id="customer-name" name="name" type="text" autocomplete="name" maxlength="100" required></div>
+              <div class="field"><label for="customer-phone">Số điện thoại *</label><input id="customer-phone" name="phone" type="tel" autocomplete="tel" maxlength="32" required></div>
             </div>
-            <div class="field"><label for="customer-email">Email (tùy chọn)</label><input id="customer-email" name="email" type="email" autocomplete="email"></div>
+            <div class="field"><label for="customer-email">Email (tùy chọn)</label><input id="customer-email" name="email" type="email" autocomplete="email" maxlength="254"></div>
             <div class="field"><label for="project-type">Loại hình công trình</label><select id="project-type" name="project_type"><option value="">Chọn loại hình công trình</option><option value="nha-hang">Nhà hàng – quán ăn</option><option value="truong-hoc">Trường học</option><option value="van-phong">Công ty – văn phòng</option><option value="dan-dung">Công trình dân dụng</option><option value="khac">Khác</option></select></div>
-            <div class="field"><label for="project-message">Nhu cầu của bạn</label><textarea id="project-message" name="message" placeholder="Mô tả diện tích, hạng mục hoặc mong muốn của bạn..."></textarea></div>
+            <div class="field"><label for="project-message">Nhu cầu của bạn</label><textarea id="project-message" name="message" maxlength="2500" placeholder="Mô tả diện tích, hạng mục hoặc mong muốn của bạn..."></textarea></div>
             <button class="button button-primary" id="submit-button" type="submit">Gửi yêu cầu</button>
             <p class="form-status" id="form-status" role="status" hidden></p>
           </form>
@@ -589,29 +588,7 @@
     });
     window.addEventListener('beforeprint', stopReveals);
     document.getElementById('year').textContent = new Date().getFullYear();
-    const form = document.getElementById('quote-form');
-    const submitButton = document.getElementById('submit-button');
-    const formStatus = document.getElementById('form-status');
-    const scriptURL = 'https://script.google.com/macros/s/AKfycbzLrJHV2v_DIJauE5YZbtYq-J6wGVlyy8ZeRFadoBQDqj3Uayx23Rmmb-tVDnFGTm_z/exec';
-    form.addEventListener('submit', async event => {
-      event.preventDefault();
-      submitButton.disabled = true;
-      submitButton.textContent = 'Đang gửi...';
-      formStatus.hidden = true;
-      try {
-        await fetch(scriptURL, { method: 'POST', body: new FormData(form), mode: 'no-cors' });
-        form.reset();
-        formStatus.textContent = 'Đã thử gửi yêu cầu. Nếu cần xác nhận hoặc hỗ trợ ngay, vui lòng gọi 0913 188 919.';
-        formStatus.style.color = 'var(--green)';
-      } catch (error) {
-        formStatus.textContent = 'Chưa thể gửi yêu cầu. Vui lòng thử lại hoặc gọi 0913 188 919.';
-        formStatus.style.color = '#a8311b';
-      } finally {
-        formStatus.hidden = false;
-        submitButton.disabled = false;
-        submitButton.textContent = 'Gửi yêu cầu';
-      }
-    });
   </script>
+  <script src="assets/quote-form.js" defer></script>
 </body>
 </html>
