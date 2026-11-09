@@ -17,6 +17,7 @@ function backend(options = {}) {
     appendRow: row => rows.push(row),
     getRange(row, column, count = 1) {
       return {
+        getValues() { return rows.slice(row - 1, row - 1 + count).map(r => [r[column - 1]]); },
         setValue(value) { rows[row - 1][column - 1] = value; },
         createTextFinder(value) {
           return {
@@ -75,11 +76,18 @@ test('valid lead stores all fields, preserves phone zero, and sends Telegram onc
   assert.equal(result.saved, true);
   assert.equal(result.telegramSent, true);
   assert.equal(app.rows.length, 2);
-  assert.equal(app.rows[1][1], "'Khách kiểm thử");
-  assert.equal(app.rows[1][2], "'0900000000");
+  assert.deepEqual(Array.from(app.rows[0]), ['STT', 'Thời gian', 'Tên khách hàng', 'Số điện thoại', 'Email', 'Loại hình', 'Lời nhắn.', 'Trạng thái', 'ID']);
+  assert.equal(app.rows[1].length, 9);
+  assert.equal(app.rows[1][0], 1);
+  assert.equal(Object.prototype.toString.call(app.rows[1][1]), '[object Date]');
+  assert.equal(app.rows[1][2], "'Khách kiểm thử");
+  assert.equal(app.rows[1][3], "'0900000000");
   assert.equal(app.rows[1][4], "'test@example.com");
   assert.equal(app.rows[1][5], "'Công ty – văn phòng");
+  assert.equal(app.rows[1][6], "'Dữ liệu giả lập, không gửi thật");
   assert.equal(app.rows[1][7], 'Đã gửi');
+  assert.equal(app.rows[1][8], quote().request_id);
+  assert.equal(app.calls.length, 1);
   assert.equal(app.calls[0].method, 'sendMessage');
   assert.match(app.calls[0].settings.payload.text, /test@example.com/);
 });
@@ -133,8 +141,8 @@ test('invalid input, missing sheet, sheet permission failure and busy lock do no
 test('customer text is stored literally, without running spreadsheet formulas', () => {
   const app = backend();
   app.post(quote({ name: '=1+1', message: '+SUM(1,2)' }));
-  assert.equal(app.rows[1][1], "'=1+1");
-  assert.equal(app.rows[1][3], "'+SUM(1,2)");
+  assert.equal(app.rows[1][2], "'=1+1");
+  assert.equal(app.rows[1][6], "'+SUM(1,2)");
 });
 
 test('editor diagnostics only read configuration; they do not append rows or send messages', () => {
@@ -143,6 +151,27 @@ test('editor diagnostics only read configuration; they do not append rows or sen
   assert.deepEqual(app.calls.map(call => call.method), ['getMe', 'getChat']);
   assert.equal(app.rows.length, 0);
   assert.equal(JSON.parse(app.context.doGet().text).service, 'minh-tu-quotes');
+});
+
+test('STT continues after sorted/deleted rows and ignores malformed legacy cells', () => {
+  const app = backend({ rows: [
+    ['STT', 'Thời gian', 'Tên khách hàng', 'Số điện thoại', 'Email', 'Loại hình', 'Lời nhắn.', 'Trạng thái', 'ID'],
+    [9], ['#REF!'], [new Date()], [2]
+  ] });
+  assert.equal(app.post(quote()).saved, true);
+  assert.equal(app.rows.at(-1)[0], 10);
+  assert.equal(app.rows[2][0], '#REF!');
+});
+
+test('only the ID in column I is used for deduplication, not the message in G', () => {
+  const app = backend();
+  app.post(quote({ message: 'bbbbbbbb-cccc-4ddd-8eee-ffffffffffff' }));
+  const next = app.post(quote({ request_id: 'bbbbbbbb-cccc-4ddd-8eee-ffffffffffff' }));
+  assert.equal(next.saved, true);
+  assert.equal(next.duplicate, undefined);
+  assert.equal(app.rows.length, 3);
+  assert.equal(app.rows[2][0], 2);
+  assert.equal(app.calls.length, 2);
 });
 
 function client(fetchImpl) {

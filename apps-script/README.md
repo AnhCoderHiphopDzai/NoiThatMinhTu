@@ -25,20 +25,28 @@
    - Triển khai phiên bản mới. Sửa deployment hiện có để giữ URL `/exec`. Nếu tạo deployment mới, thay URL `action` của `#quote-form` trong `index.html` bằng URL `/exec` mới, không dùng `/dev`.
 
    Đây là quyền truy cập Web App nhận yêu cầu công khai, không yêu cầu chia sẻ công khai bảng dữ liệu. Nếu tài khoản Workspace không có tùy chọn khách ẩn danh, cần quản trị viên cho phép hoặc dùng backend phù hợp; không thể sửa hạn chế đó bằng JavaScript trên website.
-6. Mở URL `/exec` trong cửa sổ ẩn danh. Phải thấy JSON có `service: "minh-tu-quotes"`, `version: "2026-11-09"`, không bị yêu cầu đăng nhập. Phép kiểm tra này chỉ xác nhận deployment công khai và đúng mã, không thay thế bước kiểm tra Sheets/Telegram.
+6. Mở URL `/exec` trong cửa sổ ẩn danh. Phải thấy JSON có `service: "minh-tu-quotes"`, `version: "2026-11-09.2"`, không bị yêu cầu đăng nhập. Phép kiểm tra này chỉ xác nhận deployment công khai và đúng mã, không thay thế bước kiểm tra Sheets/Telegram.
 7. Đưa `index.html` và `assets/quote-form.js` mới lên hosting cùng các assets đang có. Thư mục `apps-script/` và `tests/` là mã vận hành/kiểm thử, không cần đưa lên hosting công khai. Tải lại website, tự gửi một yêu cầu thử có nội dung rõ ràng `KIỂM TRA`, rồi kiểm tra dòng mới trong Sheets và tin nhắn Telegram.
 
 ## Dữ liệu lưu trong tab gid=0
 
 | Cột | Nội dung |
 | --- | --- |
-| A–D | Thời gian, họ tên, số điện thoại, lời nhắn — giữ thứ tự của mã cũ |
+| A | STT — số tự tăng do mã ghi |
+| B | Thời gian |
+| C | Tên khách hàng |
+| D | Số điện thoại |
 | E | Email |
-| F | Loại công trình |
-| G | Mã yêu cầu để nhận diện lần gửi lại |
-| H | Trạng thái Telegram |
+| F | Loại hình |
+| G | Lời nhắn. |
+| H | Trạng thái — kết quả gửi Telegram |
+| I | ID — mã yêu cầu để nhận diện lần gửi lại |
 
-Mã chỉ tạo hàng tiêu đề khi tab hoàn toàn trống. Nếu bảng đã có tiêu đề A–D, tự bổ sung tiêu đề E–H như trên. Không thay thứ tự hoặc dùng cột G/H cho dữ liệu khác. Mã không chỉnh sửa các dòng báo giá cũ; số điện thoại và nội dung được ghi dạng văn bản để giữ số 0 đầu và không chạy công thức từ dữ liệu nhập.
+Mã chỉ tạo hàng tiêu đề khi tab hoàn toàn trống. Bảng đã có dữ liệu cần giữ đúng tiêu đề A–I như trên. STT được ghi trực tiếp bằng số; nếu cột A đang dùng `ARRAYFORMULA` hoặc công thức gây `#REF!`, xóa công thức đó và điền STT cho các dòng cũ. Không dùng công thức tự tràn trong cột A vì mã sẽ tự điền STT cho mỗi yêu cầu mới.
+
+Mã áp dụng thứ tự mới cho những lần gửi tiếp theo, không tự di chuyển dữ liệu cũ. Với dòng cũ bị lệch theo mẫu đã gửi, hãy sắp lại: A = STT; B = thời gian cũ ở A; C = tên cũ ở B; D = số điện thoại cũ ở C; E/F giữ nguyên; G = lời nhắn cũ ở D; H giữ nguyên; I = ID cũ ở G. Sao chép cả dòng sang một tab tạm trước khi sắp lại để tránh ghi đè mất dữ liệu. Dòng vốn đã đúng thứ tự chỉ cần sửa STT nếu lỗi.
+
+Số điện thoại và nội dung được ghi dạng văn bản để giữ số 0 đầu và không chạy công thức từ dữ liệu nhập. Lần sửa thứ tự cột này chỉ cần cập nhật `Code.gs` và triển khai phiên bản mới của Web App hiện có; không cần đổi mã website hay cài trigger gửi nền.
 
 Nếu Telegram lỗi, dữ liệu vẫn được giữ trong Sheets; xem cột H và **Executions / Lượt thực thi**. HTTP 401 thường là token không hợp lệ; 400 cần kiểm tra chat ID/Start bot; 403 thường là bot bị chặn hoặc thiếu quyền. Gửi lại cùng một yêu cầu từ form khi mất phản hồi không tạo dòng hoặc thông báo thứ hai. Nếu đã lưu nhưng Telegram chưa gửi được, sửa cấu hình và xử lý thông báo còn thiếu dựa trên cột H; bản này không tự gửi lại Telegram để tránh thông báo trùng.
 

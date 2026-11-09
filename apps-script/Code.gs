@@ -5,6 +5,8 @@ const QUOTE_CONFIG = Object.freeze({
   sheetId: 0,
   telegramChatId: '1652285957'
 });
+const QUOTE_COLUMNS = Object.freeze({ serial: 1, timestamp: 2, name: 3, phone: 4, email: 5, projectType: 6, message: 7, status: 8, requestId: 9 });
+const QUOTE_HEADERS = Object.freeze(['STT', 'Thời gian', 'Tên khách hàng', 'Số điện thoại', 'Email', 'Loại hình', 'Lời nhắn.', 'Trạng thái', 'ID']);
 const PROJECT_TYPES = Object.freeze({
   'nha-hang': 'Nhà hàng – quán ăn',
   'truong-hoc': 'Trường học',
@@ -15,7 +17,7 @@ const PROJECT_TYPES = Object.freeze({
 
 // Opening /exec in an incognito browser must show this JSON without signing in.
 function doGet() {
-  return json_({ service: 'minh-tu-quotes', version: '2026-11-09', method: 'POST' });
+  return json_({ service: 'minh-tu-quotes', version: '2026-11-09.2', method: 'POST' });
 }
 
 function doPost(e) {
@@ -40,20 +42,21 @@ function doPost(e) {
     sheet = getQuoteSheet_();
     const lastRow = sheet.getLastRow();
     // A request retried after a lost response must not create another row/message.
-    if (lastRow > 0 && sheet.getLastColumn() >= 7) {
-      const existing = sheet.getRange(1, 7, lastRow, 1)
+    if (lastRow > 1 && sheet.getLastColumn() >= QUOTE_COLUMNS.requestId) {
+      const existing = sheet.getRange(2, QUOTE_COLUMNS.requestId, lastRow - 1, 1)
         .createTextFinder(data.requestId).matchEntireCell(true).findNext();
       if (existing) {
         return json_({ result: 'success', saved: true, duplicate: true, requestId: data.requestId });
       }
     }
     if (lastRow === 0) {
-      sheet.appendRow(['Thời gian', 'Họ tên', 'Số điện thoại', 'Lời nhắn', 'Email', 'Loại công trình', 'Mã yêu cầu', 'Trạng thái Telegram']);
+      sheet.appendRow([...QUOTE_HEADERS]);
     }
-    // Keep the existing four-column layout A:D; append new fields in E:H.
+    // A:I follows the customer sheet. STT is a number, not an array formula.
+    const serial = nextSerial_(sheet, lastRow);
     sheet.appendRow([
-      new Date(), cellText_(data.name), cellText_(data.phone), cellText_(data.message),
-      cellText_(data.email), cellText_(data.projectType), data.requestId, 'Đang gửi'
+      serial, new Date(), cellText_(data.name), cellText_(data.phone),
+      cellText_(data.email), cellText_(data.projectType), cellText_(data.message), 'Đang gửi', data.requestId
     ]);
     row = sheet.getLastRow();
     SpreadsheetApp.flush();
@@ -73,7 +76,7 @@ function doPost(e) {
     console.warn('TELEGRAM_NETWORK_ERROR: yêu cầu đã được lưu trong Sheets.');
   }
   try {
-    sheet.getRange(row, 8).setValue(notification.status);
+    sheet.getRange(row, QUOTE_COLUMNS.status).setValue(notification.status);
     SpreadsheetApp.flush();
   } catch (error) {
     // The lead is already committed even if updating the notification status fails.
@@ -86,6 +89,18 @@ function getQuoteSheet_() {
   const sheet = SpreadsheetApp.openById(QUOTE_CONFIG.spreadsheetId).getSheetById(QUOTE_CONFIG.sheetId);
   if (!sheet) throw new Error('Không tìm thấy tab có gid=0 trong bảng nhận báo giá.');
   return sheet;
+}
+
+function nextSerial_(sheet, lastRow) {
+  if (lastRow <= 1) return 1;
+  // Ignore #REF!, dates and other values left by the old column mapping.
+  // Use the largest existing STT to avoid repeats after sorting/deleting rows.
+  const values = sheet.getRange(2, QUOTE_COLUMNS.serial, lastRow - 1, 1).getValues();
+  return values.reduce((highest, [value]) => {
+    const number = typeof value === 'number' ? value
+      : typeof value === 'string' && /^\d+$/.test(value.trim()) ? Number(value.trim()) : 0;
+    return Number.isSafeInteger(number) && number > highest ? number : highest;
+  }, lastRow - 1) + 1;
 }
 
 function readQuote_(params) {
